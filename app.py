@@ -1,43 +1,54 @@
-import os
+import streamlit as st
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Read job description
-with open("job.txt", "r") as f:
-    job_desc = f.read()
+st.set_page_config(page_title="SmartHire AI", layout="centered")
 
-# Folder where resumes are stored
-resume_folder = "resumes"
+st.title("🚀 SmartHire AI – Resume Screening System")
 
-resumes = []
-names = []
+st.write("Enter Job Description and upload resumes to get ranking")
 
-# Read all resume files
-for file in os.listdir(resume_folder):
-    if file.endswith(".txt"):
-        with open(os.path.join(resume_folder, file), "r") as f:
-            resumes.append(f.read())
-            names.append(file)
+# Job description input
+job_desc = st.text_area("📝 Enter Job Description")
 
-# Combine job description and resumes
-documents = [job_desc] + resumes
+# Upload resumes
+resume_files = st.file_uploader("📂 Upload Resumes", type=["txt"], accept_multiple_files=True)
 
-# Convert text to TF-IDF vectors
-vectorizer = TfidfVectorizer()
-tfidf_matrix = vectorizer.fit_transform(documents)
+# Button
+if st.button("🔍 Analyze Resumes"):
 
-# Calculate cosine similarity
-similarity_scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:]).flatten()
+    if not job_desc:
+        st.warning("Please enter job description ❗")
+    
+    elif not resume_files:
+        st.warning("Please upload resumes ❗")
 
-# Create ranking table
-results = pd.DataFrame({
-    "Candidate": names,
-    "Match Score": similarity_scores
-})
+    else:
+        resumes = []
+        names = []
 
-# Sort by best match
-results = results.sort_values(by="Match Score", ascending=False)
+        for file in resume_files:
+            content = file.read().decode("utf-8")
+            resumes.append(content)
+            names.append(file.name)
 
-print("\n===== Candidate Ranking =====\n")
-print(results)
+        documents = [job_desc] + resumes
+
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(documents)
+
+        similarity_scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:]).flatten()
+
+        results = pd.DataFrame({
+            "Candidate": names,
+            "Match Score": similarity_scores
+        })
+
+        results = results.sort_values(by="Match Score", ascending=False)
+
+        st.subheader("🏆 Candidate Ranking")
+        st.dataframe(results)
+
+        best = results.iloc[0]
+        st.success(f"Top Candidate: {best['Candidate']} ({best['Match Score']*100:.2f}%)")
